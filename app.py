@@ -1,54 +1,54 @@
-# RAG Knowledge Assistant - Arrowstack Foods
-# Simple version - No internet needed
-
+import streamlit as st
 import os
 import re
 
-# 1. Load all policy files
-documents = {}
-for file in os.listdir("."):
-    if file.endswith("_policy.txt"):
-        with open(file, "r", encoding="utf-8") as f:
-            documents[file] = f.read()
+st.set_page_config(page_title="Arrowstack Foods - Knowledge Assistant", page_icon="🍔")
+st.title("🍔 Arrowstack Foods - Knowledge Assistant")
+st.write("Company policy gurinchi emaina adugu!")
 
-print("="*50)
-print("Arrowstack Foods - Knowledge Assistant")
-print("Loaded documents:", list(documents.keys()))
-print("Type 'exit' to stop")
-print("="*50)
+def load_documents():
+    docs = {}
+    for file in os.listdir("."):
+        if file.endswith(".txt"):
+            try:
+                with open(file, "r", encoding="utf-8", errors="ignore") as f:
+                    docs[file] = f.read()
+            except:
+                pass
+    return docs
 
-# 2. Ask questions loop
-while True:
-    question = input("\nYour Question: ")
-    if question.lower() == "exit":
-        print("Thank you! Bye!")
-        break
+docs = load_documents()
+st.success(f"Loaded documents: {list(docs.keys())}")
 
-    # Find best matching sentences
-    # Remove small words
-    stop_words = ["what", "is", "the", "how", "many", "do", "i", "have", "can", "are", "a", "an", "my", "for", "in", "on"]
-    keywords = [w for w in re.findall(r"\w+", question.lower()) if w not in stop_words]
+question = st.text_input("Your Question:", placeholder="Ex: What is WFH policy?")
 
-    best_answer = None
-    best_score = 0
-    best_source = ""
-
-    for file_name, text in documents.items():
-        # Split into lines
-        for line in text.split("\n"):
-            score = 0
-            line_lower = line.lower()
-            for kw in keywords:
-                if kw in line_lower:
-                    score += 1
+if st.button("Ask"):
+    if not question:
+        st.warning("Please oka question type cheyi!")
+    else:
+        q_words = set(re.findall(r"\w+", question.lower()))
+        best_file = None
+        best_score = 0
+        best_text = ""
+        for name, text in docs.items():
+            text_lower = text.lower()
+            score = sum(1 for w in q_words if len(w) > 2 and w in text_lower)
             if score > best_score:
                 best_score = score
-                best_answer = line.strip()
-                best_source = file_name
-
-    # 3. Show answer with citation - Safety: No hallucination
-    if best_score == 0 or not best_answer:
-        print("\nAssistant: Not found in policy documents. Please ask HR team.")
-    else:
-        print(f"\nAssistant: {best_answer}")
-        print(f"Source: {best_source}")
+                best_file = name
+                best_text = text
+        if best_file and best_score > 0:
+            st.subheader(f"Answer from: {best_file}")
+            lines = best_text.split("\n")
+            found = []
+            for line in lines:
+                line_lower = line.lower()
+                if any(w in line_lower for w in q_words if len(w) > 2):
+                    found.append(line)
+            if found:
+                for l in found[:10]:
+                    st.write(f"- {l}")
+            else:
+                st.write(best_text[:2000])
+        else:
+            st.error("Sorry, ee question ki answer documents lo dorakaledu.")
